@@ -67,13 +67,13 @@ export class PaystackPayoutService {
 
   // Create transfer recipient for momo
   async createMoMoRecipient(
-    payload: StandardPayoutDto
+    payload: StandardPayoutDto,
   ): Promise<PaystackRecipientResponseDto> {
     try {
       const recipient: CreatePaystackRecipientInput = {
         type: 'mobile_money',
-        name: payload.accountName, // MoMo name
-        account_number: payload.accountNumber, //Momo number
+        name: payload.accountName,
+        account_number: payload.accountNumber,
         bank_code: payload.network,
         currency: payload.currency,
         description: `Money transferred to ${payload.accountName} to ${payload.accountNumber}`,
@@ -87,7 +87,10 @@ export class PaystackPayoutService {
           `${this.baseUrl}/transferrecipient`,
           recipient,
           {
-            headers: this.secretKey,
+            headers: {
+              Authorization: `Bearer ${this.secretKey}`,
+              'Content-Type': 'application/json',
+            },
           },
         ),
       );
@@ -98,19 +101,19 @@ export class PaystackPayoutService {
 
       return response.data;
     } catch (error) {
-      this.handleError(error, 'Create Recipient')
+      this.handleError(error, 'Create Recipient');
     }
   }
 
   // Create transfer recipient for a bank
-  async creatBankRecipient(
-    payload: StandardBankPayoutPayload
+  async createBankRecipient(
+    payload: StandardBankPayoutPayload,
   ): Promise<PaystackRecipientResponseDto> {
     try {
       const recipient: CreatePaystackRecipientInput = {
         type: 'nuban',
-        name: payload.accountName, // Account name
-        account_number: payload.accountNumber, //Account number
+        name: payload.accountName,
+        account_number: payload.accountNumber,
         bank_code: payload.bankCode,
         currency: payload.currency,
         description: `Bank transfer to ${payload.accountName} to ${payload.accountNumber}`,
@@ -124,7 +127,10 @@ export class PaystackPayoutService {
           `${this.baseUrl}/transferrecipient`,
           recipient,
           {
-            headers: this.secretKey,
+            headers: {
+              Authorization: `Bearer ${this.secretKey}`,
+              'Content-Type': 'application/json',
+            },
           },
         ),
       );
@@ -135,7 +141,7 @@ export class PaystackPayoutService {
 
       return response.data;
     } catch (error) {
-      this.handleError(error, 'Create Recipient')
+      this.handleError(error, 'Create Recipient');
     }
   }
 
@@ -144,7 +150,7 @@ export class PaystackPayoutService {
     payload: StandardPayoutDto | StandardBankPayoutPayload,
   ): Promise<PaystackTransferResponseDto> {
     try {
-      const ref = payload.reference || this.generateReference()
+      const ref = payload.reference || this.generateReference();
 
       const transfer: InitiatePaystackTransferDto = {
         source: 'balance',
@@ -160,14 +166,17 @@ export class PaystackPayoutService {
           `${this.baseUrl}/transfer`,
           transfer,
           {
-            headers: this.secretKey
+            headers: {
+              Authorization: `Bearer ${this.secretKey}`,
+              'Content-Type': 'application/json',
+            },
           },
         ),
       );
 
       if (!res.data.status) {
         throw new BadRequestException(res.data.message || 'Failed to initiate transfer');
-      };
+      }
 
       return res.data;
     } catch (error) {
@@ -178,7 +187,7 @@ export class PaystackPayoutService {
   async finalizeTransfer(
     transferCode: string,
     otpCode: string,
-    secret_key: string,
+    secret_key: string, // Note: Consider removing this parameter if not needed
   ): Promise<PaystackTransferResponseDto> {
     try {
       const finalize: FinalizeTransferDto = {
@@ -191,18 +200,21 @@ export class PaystackPayoutService {
           `${this.baseUrl}/transfer/finalize_transfer`,
           finalize,
           {
-            headers: this.secretKey
+            headers: {
+              Authorization: `Bearer ${secret_key}`,
+              'Content-Type': 'application/json',
+            },
           },
         ),
-      )
+      );
 
       if (!res.data.status) {
         throw new BadRequestException(res.data.message || 'Failed to initiate transfer');
       }
 
       return res.data;
-    } catch (e) {
-      this.handleError(e, 'Finalize transfer');
+    } catch (error) {
+      this.handleError(error, 'Finalize transfer');
     }
   }
 
@@ -215,17 +227,21 @@ export class PaystackPayoutService {
         this.httpService.get<VerifyTransferResponseDto>(
           `${this.baseUrl}/transfer/verify/${reference}`,
           {
-            headers: this.secretKey,
+            headers: {
+              Authorization: `Bearer ${secret_key}`,
+              'Content-Type': 'application/json',
+            },
           },
         ),
-      )
+      );
+
       if (!res.data.status) {
         throw new BadRequestException(res.data.message || 'Failed to verify the transfer');
       }
 
       return res.data;
-    } catch (e) {
-      this.handleError(e, 'Verify Transfer');
+    } catch (error) {
+      this.handleError(error, 'Verify Transfer');
     }
   }
 
@@ -281,7 +297,7 @@ export class PaystackPayoutService {
   ): Promise<StandardPayoutResponseDto> {
     try {
       //Create recipient
-      const recipientResponse = await this.creatBankRecipient(payload);
+      const recipientResponse = await this.createBankRecipient(payload);
       const recipientCode = recipientResponse.data.recipient_code;
 
       //Initiate transfer
